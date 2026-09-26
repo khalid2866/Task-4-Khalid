@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intelligent Code Reviewer &amp; Explainer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --acc:#2f81f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:18px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:19px; margin:0; }
+  header .badge { font-size:12px; background:#1f6feb; padding:3px 10px; border-radius:20px; }
+  main { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:18px 28px; max-width:1500px; margin:0 auto; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:#8b949e; }
+  textarea { width:100%; min-height:340px; background:#0d1117; color:var(--txt); border:1px solid var(--line);
+             border-radius:8px; padding:12px; font:13px/1.55 ui-monospace,Consolas,monospace; resize:vertical; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  select, input[type=text] { background:#0d1117; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:9px 18px; font-size:14px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:wait; }
+  #out { min-height:340px; }
+  #out h2 { color:#79c0ff; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:14px; }
+  #out h2:first-child { margin-top:0; }
+  #out ul { padding-left:20px; }
+  #out li { margin:6px 0; }
+  #out pre { background:#0d1117; border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; }
+  #out code { font:13px/1.5 ui-monospace,Consolas,monospace; }
+  #status { font-size:13px; color:#8b949e; margin-top:10px; min-height:18px; }
+  .err { color:#f85149; }
+  @media (max-width:900px){ main{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ Intelligent Code Reviewer &amp; Explainer</h1>
+  <span class="badge">Project 4 · DecodeLabs</span>
+</header>
+<main>
+  <div class="card">
+    <h2>Input — paste code or load a file</h2>
+    <textarea id="code" placeholder="Paste your code here…"></textarea>
+    <div class="row">
+      <input type="file" id="file" accept=".py,.js,.ts,.java,.cpp,.c,.go,.json">
+      <input type="text" id="filename" placeholder="snippet.py" style="width:130px">
+      <select id="engine">
+        <option value="demo">demo (offline)</option>
+        <option value="gemini">gemini</option>
+        <option value="openai">openai</option>
+      </select>
+      <select id="mode">
+        <option value="review">review</option>
+        <option value="explain">explain</option>
+      </select>
+      <button id="go" onclick="runReview()">Review</button>
+    </div>
+    <div id="status"></div>
+  </div>
+  <div class="card">
+    <h2>Report — ## BUG_REPORT + ## REFACTORED_CODE</h2>
+    <div id="out"><p style="color:#8b949e">Your structured report will appear here.</p></div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$('file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { $('code').value = r.result; $('filename').value = f.name; };
+  r.readAsText(f);
+});
+async function runReview() {
+  const btn = $('go'), status = $('status'), out = $('out');
+  btn.disabled = true; status.textContent = 'Running pipeline…';
+  try {
+    const res = await fetch('/api/review', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code:$('code').value, filename:$('filename').value,
+                             engine:$('engine').value, mode:$('mode').value })
+    });
+    const data = await res.json();
+    if (!data.ok) { out.innerHTML = `<p class="err">Rejected: ${data.error}</p>`; status.textContent=''; return; }
+    out.innerHTML = data.html;
+    out.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+    status.textContent = 'Validated ✓ ' + JSON.stringify(data.summary);
+  } catch(e) { out.innerHTML = `<p class="err">Request failed: ${e}</p>`; }
+  finally { btn.disabled = false; }
+}
+</script>
+</body>
+</html>
