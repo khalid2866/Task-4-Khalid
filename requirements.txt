@@ -1,0 +1,13 @@
+# Review engines
+rich>=13.0
+python-dotenv>=1.0
+
+# LLM backends (optional — the demo engine needs none of these)
+google-genai>=1.0
+openai>=1.0
+
+# Web UI
+flask>=3.0
+
+# Tests
+pytest>=8.0
